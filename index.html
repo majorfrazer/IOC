@@ -1,0 +1,1184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>PopDarts Championship</title>
+  <meta name="theme-color" content="#111827">
+  <link rel="manifest" id="manifest-link">
+  
+  <style>
+    :root {
+      --bg: #111827; --card: #1f2937; --text: #f9fafb;
+      --accent: #f59e0b; 
+      --safe-top: env(safe-area-inset-top);
+      --safe-bottom: env(safe-area-inset-bottom);
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+
+    body {
+      margin: 0; padding: 0;
+      background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overflow: hidden;
+      height: 100vh; width: 100vw;
+      overscroll-behavior: none;
+    }
+
+    .screen {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      background: var(--bg);
+      transform: translateX(100%); transition: transform 0.3s ease;
+      z-index: 10;
+    }
+    .screen.active { transform: translateX(0); z-index: 20; }
+
+    .header {
+      padding: max(10px, var(--safe-top)) 15px 10px;
+      background: var(--card);
+      display: flex; align-items: center; justify-content: space-between;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+      flex-shrink: 0;
+    }
+    .header h1 { margin: 0; font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .header-btn { background: none; border: none; font-size: 20px; cursor: pointer; padding: 5px; color: var(--text); }
+
+    .content {
+      flex: 1; overflow-y: auto; padding: 15px;
+      padding-bottom: 80px;
+      overscroll-behavior-y: contain;
+    }
+
+    button { cursor: pointer; font-family: inherit; }
+
+    .card {
+      background: var(--card); border-radius: 12px; padding: 15px; margin-bottom: 12px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    .card h3 { margin: 0 0 10px; font-size: 14px; text-transform: uppercase; color: #9ca3af; }
+
+    .btn-main {
+      width: 100%; padding: 16px; border-radius: 12px; border: none;
+      background: var(--accent); color: #000; font-weight: 800; font-size: 16px;
+      text-transform: uppercase; margin-bottom: 10px;
+    }
+    .btn-main:active { transform: scale(0.98); }
+
+    .btn-danger {
+      width: 100%; padding: 14px; border-radius: 12px; border: 2px solid #ef4444;
+      background: transparent; color: #ef4444; font-weight: 700; font-size: 14px;
+      text-transform: uppercase; margin-bottom: 10px;
+    }
+
+    .btn-secondary {
+      width: 100%; padding: 14px; border-radius: 12px; border: none;
+      background: #374151; color: var(--text); font-weight: 700; font-size: 14px;
+      text-transform: uppercase; margin-bottom: 10px;
+    }
+
+    /* --- GAMEPLAY SCREEN --- */
+    #screen-game { background: #000; }
+
+    .game-container {
+      flex: 1; display: flex; flex-direction: column;
+    }
+
+    .player-section {
+      flex: 1; position: relative;
+      display: flex; flex-direction: column; justify-content: center;
+      padding: 20px; transition: background 0.3s;
+    }
+
+    .p-score-box {
+      z-index: 5; text-align: center;
+      text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+    }
+    .p-name { font-size: 20px; font-weight: 700; opacity: 0.9; margin-bottom: 5px; text-transform: uppercase; }
+    .p-score { font-size: 90px; font-weight: 900; line-height: 1; }
+
+    /* Progress bar fills from left to right */
+    .progress-track {
+      position: absolute; top: 0; bottom: 0; left: 0;
+      width: 0%; /* JS updates this */
+      transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      z-index: 1;
+    }
+
+    .controls {
+      display: flex; gap: 10px; justify-content: center;
+      margin-top: 15px; position: relative; z-index: 10;
+    }
+    .btn-score {
+      width: 50px; height: 50px; border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.3);
+      background: rgba(0,0,0,0.3); color: #fff;
+      font-size: 18px; font-weight: bold;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .btn-score:active { background: #fff; color: #000; transform: scale(0.95); }
+
+    .game-divider {
+      background: #000; display: flex; align-items: center; justify-content: center;
+      z-index: 20;
+    }
+    .btn-reset {
+      background: #374151; color: #9ca3af; border: none;
+      width: 40px; height: 40px; border-radius: 20px; font-size: 20px;
+    }
+
+    @media (orientation: portrait) {
+      .game-container { flex-direction: column; }
+      .game-divider { height: 4px; width: 100%; }
+      .btn-reset { margin-top: -20px; margin-bottom: -20px; }
+      .player-section { border-bottom: 1px solid rgba(255,255,255,0.1); }
+    }
+
+    @media (orientation: landscape) {
+      .game-container { flex-direction: row; }
+      .game-divider { width: 4px; height: 100%; flex-direction: column; }
+      .btn-reset { margin-left: -20px; margin-right: -20px; }
+      .player-section { border-right: 1px solid rgba(255,255,255,0.1); }
+      .p-score { font-size: 70px; }
+      .controls { gap: 6px; }
+      .btn-score { width: 44px; height: 44px; font-size: 16px; }
+    }
+
+    /* --- COLOR GRID --- */
+    .color-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+    }
+    .color-opt {
+      height: 40px; border-radius: 8px; cursor: pointer;
+      border: 2px solid rgba(255,255,255,0.1); transition: all 0.2s;
+    }
+    .color-opt.selected { 
+      border-color: #fff; 
+      box-shadow: 0 0 0 2px var(--accent);
+      transform: scale(1.1);
+      z-index: 5;
+    }
+
+    .nav {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: var(--card); border-top: 1px solid rgba(255,255,255,0.1);
+      display: flex; padding-bottom: var(--safe-bottom);
+      z-index: 100;
+    }
+    .nav-item {
+      flex: 1; padding: 10px 0; text-align: center;
+      font-size: 10px; color: #9ca3af; opacity: 0.7;
+      background: none; border: none;
+    }
+    .nav-item.active { color: var(--accent); opacity: 1; font-weight: bold; }
+    .nav-icon { font-size: 20px; display: block; margin-bottom: 2px; }
+
+    input, select {
+      width: 100%; padding: 12px; background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.2); color: #fff;
+      border-radius: 8px; margin-bottom: 10px; font-family: inherit; font-size: 14px;
+    }
+    select { appearance: none; }
+
+    .sync-status { font-size: 12px; margin-top: 5px; opacity: 0.7; }
+    .sync-status.ok { color: #4ade80; }
+    .sync-status.err { color: #ef4444; }
+
+    /* --- DRAW / SCHEDULE TABLE --- */
+    .draw-game {
+      display: flex; align-items: center; padding: 10px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.06); font-size: 13px;
+      gap: 8px;
+    }
+    .draw-game.gf { background: linear-gradient(90deg, rgba(255,215,0,0.15), transparent); border-radius: 8px; padding: 10px 8px; }
+    .draw-game .game-num { color: #6b7280; font-size: 11px; min-width: 24px; text-align: center; }
+    .draw-game .game-players { flex: 1; font-weight: 600; }
+    .draw-game .game-score { color: var(--accent); font-weight: 700; min-width: 50px; text-align: center; }
+    .draw-game .game-status { font-size: 11px; min-width: 20px; text-align: center; }
+    .draw-game .game-winner { font-size: 11px; color: #10b981; }
+    .draw-game.pending .game-players { opacity: 0.6; }
+    .draw-game.active-game { border-left: 3px solid var(--accent); padding-left: 8px; }
+
+    /* --- STANDINGS TABLE --- */
+    .standings-table { width: 100%; font-size: 12px; border-collapse: collapse; }
+    .standings-table th {
+      background: #374151; padding: 8px 4px; text-align: center;
+      font-size: 10px; text-transform: uppercase; color: #9ca3af;
+      position: sticky; top: 0;
+    }
+    .standings-table th:first-child { text-align: left; padding-left: 8px; }
+    .standings-table td { padding: 8px 4px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .standings-table td:first-child { text-align: left; font-weight: 700; padding-left: 8px; }
+    .standings-table tr.rank-1 { background: rgba(255,215,0,0.12); }
+
+    /* --- CELEBRATION OVERLAY --- */
+    .celebration-overlay {
+      position: fixed; inset: 0; z-index: 1000;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      animation: fadeIn 0.5s ease;
+    }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    .celebration-overlay .trophy { font-size: 100px; animation: bounce 1s infinite; }
+    @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
+
+    .celebration-overlay h1 { color: #fff; font-size: 28px; margin: 10px 0; text-align: center; }
+    .celebration-overlay .winner-name {
+      color: #ffd700; font-size: 48px; font-weight: 900;
+      text-shadow: 0 0 10px rgba(255,215,0,0.8); letter-spacing: 4px;
+      animation: pulse 1.5s ease-in-out infinite; text-align: center;
+    }
+    @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+
+    .btn-celebration {
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      color: white; border: none; padding: 16px 40px; font-size: 18px;
+      font-weight: bold; border-radius: 50px; cursor: pointer;
+      box-shadow: 0 8px 20px rgba(245,87,108,0.4); margin-top: 20px;
+    }
+
+    /* --- TABS --- */
+    .tabs {
+      display: flex; background: var(--card); border-radius: 8px; margin-bottom: 12px; overflow: hidden;
+    }
+    .tab {
+      flex: 1; padding: 10px 8px; text-align: center; font-size: 12px;
+      font-weight: 700; border: none; background: transparent; color: #9ca3af;
+      text-transform: uppercase; transition: all 0.2s;
+    }
+    .tab.active { background: var(--accent); color: #000; }
+
+    /* Quick Actions */
+    .quick-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+    .quick-btn {
+      padding: 14px 8px; border-radius: 12px; border: none;
+      font-weight: 700; font-size: 13px; text-align: center;
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+    }
+    .quick-btn .q-icon { font-size: 24px; }
+    .quick-btn.primary { background: var(--accent); color: #000; }
+    .quick-btn.secondary { background: #374151; color: var(--text); }
+
+    /* Next game card */
+    .next-game-card {
+      background: linear-gradient(135deg, rgba(245,158,11,0.15), rgba(245,158,11,0.05));
+      border: 1px solid rgba(245,158,11,0.3); border-radius: 12px;
+      padding: 15px; margin-bottom: 12px; text-align: center;
+    }
+    .next-game-card .vs { font-size: 12px; color: #9ca3af; margin: 4px 0; }
+    .next-game-card .players { font-size: 18px; font-weight: 800; }
+
+    .empty-state {
+      text-align: center; padding: 40px 20px; color: #6b7280;
+    }
+    .empty-state .e-icon { font-size: 48px; margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+
+<div id="screen-home" class="screen active">
+  <div class="header">
+    <h1>🎯 PopDarts</h1>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span id="sync-dot" style="font-size:10px;">🔴</span>
+      <span style="font-size:11px;color:#6b7280;" id="version-label">v2.4</span>
+    </div>
+  </div>
+  <div class="content">
+    <div class="status-bar" style="display:flex;justify-content:space-between;background:var(--card);padding:10px 15px;border-radius:8px;margin-bottom:12px;font-size:12px;">
+      <div style="text-align:center"><div style="font-size:18px;font-weight:900;color:var(--accent)" id="stat-players">0</div><div style="font-size:10px;color:#9ca3af">Players</div></div>
+      <div style="text-align:center"><div style="font-size:18px;font-weight:900;color:var(--accent)" id="stat-games">0/0</div><div style="font-size:10px;color:#9ca3af">Games</div></div>
+      <div style="text-align:center"><div style="font-size:18px;font-weight:900;color:var(--accent)" id="stat-target">21</div><div style="font-size:10px;color:#9ca3af">Target</div></div>
+      <div style="text-align:center"><div style="font-size:18px;font-weight:900;color:var(--accent)" id="stat-leader">-</div><div style="font-size:10px;color:#9ca3af">Leader</div></div>
+    </div>
+
+    <div id="next-game-container"></div>
+
+    <div class="quick-actions">
+      <button class="quick-btn primary" onclick="playNextGame()">
+        <span class="q-icon">▶</span>Play Next
+      </button>
+      <button class="quick-btn secondary" onclick="showScreen('setup')">
+        <span class="q-icon">🎮</span>Custom Match
+      </button>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('draw', this)">Draw</button>
+      <button class="tab" onclick="switchTab('standings', this)">Standings</button>
+    </div>
+
+    <div id="tab-draw" class="tab-content">
+      <div id="draw-list"></div>
+    </div>
+
+    <div id="tab-standings" class="tab-content" style="display:none">
+      <div id="standings-container"></div>
+    </div>
+  </div>
+</div>
+
+<div id="screen-setup" class="screen">
+  <div class="header">
+    <button class="header-btn" onclick="showScreen('home')">←</button>
+    <h1>New Match</h1>
+    <div></div>
+  </div>
+  <div class="content">
+    <div class="card">
+      <label style="font-weight:600;">Player 1</label>
+      <select id="p1-select"></select>
+      <label style="font-weight:600; margin-top:10px; display:block; font-size:13px; color:#9ca3af">P1 Dart Color</label>
+      <div class="color-grid" id="p1-colors"></div>
+    </div>
+
+    <div class="card">
+      <label style="font-weight:600;">Player 2</label>
+      <select id="p2-select"></select>
+      <label style="font-weight:600; margin-top:10px; display:block; font-size:13px; color:#9ca3af">P2 Dart Color</label>
+      <div class="color-grid" id="p2-colors"></div>
+    </div>
+
+    <button class="btn-main" onclick="startGame()">Start Game</button>
+  </div>
+</div>
+
+<div id="screen-game" class="screen">
+  <div class="header" style="background:transparent; position:absolute; top:0; left:0; right:0; z-index:50; pointer-events:none;">
+    <button class="header-btn" onclick="quitGame()" style="pointer-events:auto; background:rgba(0,0,0,0.5); border-radius:50%; width:40px; height:40px;">✕</button>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span id="game-label" style="background:rgba(0,0,0,0.5); padding:4px 12px; border-radius:12px; font-weight:bold; font-size:12px;"></span>
+      <span style="background:rgba(0,0,0,0.5); padding:4px 12px; border-radius:12px; font-weight:bold; font-size:12px">TARGET: <span id="game-target">21</span></span>
+    </div>
+  </div>
+
+  <div class="game-container">
+    <div class="player-section" id="p1-area">
+      <div class="progress-track" id="p1-bar"></div>
+      <div class="p-score-box">
+        <div class="p-name" id="p1-name-disp">Player 1</div>
+        <div class="p-score" id="p1-score">0</div>
+      </div>
+      <div class="controls">
+        <button class="btn-score" style="color:#ef4444; border-color:#ef4444" onclick="score(1, -1)">-1</button>
+        <button class="btn-score" onclick="score(1, 1)">1</button>
+        <button class="btn-score" onclick="score(1, 2)">2</button>
+        <button class="btn-score" onclick="score(1, 3)">3</button>
+      </div>
+    </div>
+
+    <div class="game-divider">
+      <button class="btn-reset" onclick="resetScores()">↺</button>
+    </div>
+
+    <div class="player-section" id="p2-area">
+      <div class="progress-track" id="p2-bar"></div>
+      <div class="p-score-box">
+        <div class="p-name" id="p2-name-disp">Player 2</div>
+        <div class="p-score" id="p2-score">0</div>
+      </div>
+      <div class="controls">
+        <button class="btn-score" style="color:#ef4444; border-color:#ef4444" onclick="score(2, -1)">-1</button>
+        <button class="btn-score" onclick="score(2, 1)">1</button>
+        <button class="btn-score" onclick="score(2, 2)">2</button>
+        <button class="btn-score" onclick="score(2, 3)">3</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="screen-settings" class="screen">
+  <div class="header"><h1>Settings</h1></div>
+  <div class="content">
+    <div class="card">
+      <h3>Google Sheets Link</h3>
+      <input type="text" id="gas-url" placeholder="Paste URL here..." onchange="saveSettings()">
+      <div class="sync-status" id="sync-msg">Not connected.</div>
+      <button class="btn-secondary" style="margin-top:10px;" onclick="syncData()">Sync Now</button>
+    </div>
+
+    <div class="card">
+      <h3>Players</h3>
+      <div style="display:flex; gap:10px; margin-bottom:10px;">
+        <input type="text" id="new-player-name" placeholder="Player name" style="margin:0;">
+        <button style="background:var(--accent); border:none; border-radius:8px; padding:0 15px; font-weight:bold; color:#000; white-space:nowrap;" onclick="addNewPlayer()">Add</button>
+      </div>
+      <div id="player-list-settings" style="font-size:13px; color:#9ca3af;"></div>
+    </div>
+
+    <div class="card">
+      <h3>Championship</h3>
+      <button class="btn-main" onclick="generateChampionship()">Generate Championship</button>
+      <button class="btn-danger" onclick="newEvent()">New Event</button>
+    </div>
+
+    <div class="card">
+      <h3>Data</h3>
+      <button class="btn-danger" onclick="resetAllData()">Reset All Data</button>
+    </div>
+  </div>
+</div>
+
+<nav class="nav" id="main-nav">
+  <button class="nav-item active" onclick="showScreen('home')">
+    <span class="nav-icon">🏠</span>Home
+  </button>
+  <button class="nav-item" onclick="showScreen('settings')">
+    <span class="nav-icon">⚙</span>Settings
+  </button>
+</nav>
+
+<div id="celebration-overlay" class="celebration-overlay" style="display:none;"></div>
+
+<script>
+  const manifestData = {
+    "name": "PopDarts Championship",
+    "short_name": "PopDarts",
+    "display": "standalone",
+    "background_color": "#111827",
+    "theme_color": "#111827",
+    "orientation": "any",
+    "start_url": ".",
+    "icons": []
+  };
+  const stringManifest = JSON.stringify(manifestData);
+  const blob = new Blob([stringManifest], {type: 'application/json'});
+  const manifestURL = URL.createObjectURL(blob);
+  document.getElementById('manifest-link').setAttribute('href', manifestURL);
+</script>
+
+<script>
+// =============================================================================
+// POPDARTS CHAMPIONSHIP SYSTEM - CLIENT V2.4 (Stable Core + Colors)
+// =============================================================================
+
+// --- SPECIFIC DART COLORS FROM YOUR LINKS ---
+const DART_COLORS = [
+  { name: 'Elite Gold', hex: '#EAB308' },  // Gold
+  { name: 'Elite Silver', hex: '#9CA3AF' }, // Silver
+  { name: 'Elite Black', hex: '#1F2937' }, // Black
+  { name: 'OG Green', hex: '#22C55E' },    // Green
+  { name: 'OG Blue', hex: '#3B82F6' },     // Blue
+  { name: 'Pro Red', hex: '#EF4444' },     // Red
+  { name: 'Pro Cyan', hex: '#06B6D4' },    // Cyan
+  { name: 'Pro Pink', hex: '#EC4899' },    // Pink
+  { name: 'Pro Grey', hex: '#4B5563' },    // Dark Grey
+  { name: 'Orange', hex: '#F97316' },      // Orange
+  { name: 'Purple', hex: '#A855F7' },      // Purple
+  { name: 'Yellow', hex: '#FACC15' }       // Yellow
+];
+
+const STORAGE_KEY = 'popdarts_championship_v2';
+
+// --- STATE ---
+let STATE = {
+  players: [],
+  target: 21,
+  // YOUR NEW URL
+  gasUrl: 'https://script.google.com/macros/s/AKfycbxwPBnAgn6L-oGYsjh8jDgcDmrcJ67n9BriGYJgVewP3oJtXHEmx2eywzzN1AUMlvTO8A/exec',
+  draw: [],
+  grandFinalExists: false,
+  stats: [],
+  currentGame: null,
+  currentDrawIndex: -1,
+  lastChampion: null
+};
+
+// =============================================================================
+// INITIALIZATION
+// =============================================================================
+
+window.onload = () => {
+  loadLocal();
+  renderColorGrids(); // Initialize the color pickers
+  updateUI();
+  if (STATE.gasUrl) syncData();
+};
+
+// =============================================================================
+// PERSISTENCE
+// =============================================================================
+
+function loadLocal() {
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved);
+      // Ensure we keep the hardcoded URL if local doesn't have a valid one, 
+      const hardcodedUrl = STATE.gasUrl;
+      STATE = { ...STATE, ...parsed };
+      if (!STATE.gasUrl || STATE.gasUrl.length < 10) STATE.gasUrl = hardcodedUrl;
+    } catch (e) { console.error('Failed to load state', e); }
+  }
+  document.getElementById('gas-url').value = STATE.gasUrl || '';
+  document.getElementById('target-input').value = STATE.target;
+}
+
+function saveLocal() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(STATE));
+}
+
+function saveSettings() {
+  STATE.gasUrl = document.getElementById('gas-url').value.trim();
+  STATE.target = parseInt(document.getElementById('target-input').value) || 21;
+  saveLocal();
+  updateUI();
+}
+
+function normalizePlayerName(name) {
+  if (!name) return '';
+  let n = String(name).trim();
+  n = n.replace(/\s*🏆\s*/g, '').trim();
+  n = n.replace(/\s+/g, ' ');
+  return n;
+}
+
+function sanitizePlayerName(name) {
+  if (!name) return '';
+  let s = String(name).trim();
+  s = s.replace(/^[=+\-@\t\r]+/, '');
+  return s.substring(0, 50);
+}
+
+// =============================================================================
+// SCHEDULING
+// =============================================================================
+
+function scheduleGamesSmartly(allPairs) {
+  if (!allPairs || allPairs.length === 0) return [];
+  if (allPairs.length === 1) return allPairs;
+
+  let bestSchedule = [];
+  let bestScore = Infinity;
+
+  for (let attempt = 0; attempt < 50; attempt++) {
+    const result = attemptSchedule(allPairs);
+    if (result.score < bestScore) {
+      bestScore = result.score;
+      bestSchedule = result.schedule;
+      if (bestScore === 0) break;
+    }
+  }
+  return bestSchedule;
+}
+
+function attemptSchedule(originalPairs) {
+  let pool = [...originalPairs];
+  pool.sort(() => Math.random() - 0.5);
+  const schedule = [];
+  let penaltyScore = 0;
+
+  while (pool.length > 0) {
+    let bestIdx = -1;
+    let minPenalty = Infinity;
+    const lastGame = schedule.length > 0 ? schedule[schedule.length - 1] : [];
+    const prevGame = schedule.length > 1 ? schedule[schedule.length - 2] : [];
+
+    for (let i = 0; i < pool.length; i++) {
+      const [pA, pB] = pool[i];
+      let currentPenalty = 0;
+      if ((lastGame.includes(pA) && prevGame.includes(pA)) ||
+          (lastGame.includes(pB) && prevGame.includes(pB))) {
+        currentPenalty += 1000;
+      }
+      if (lastGame.includes(pA)) currentPenalty += 10;
+      if (lastGame.includes(pB)) currentPenalty += 10;
+      if (currentPenalty < minPenalty) {
+        minPenalty = currentPenalty;
+        bestIdx = i;
+        if (minPenalty === 0) break;
+      }
+    }
+    if (bestIdx !== -1) {
+      schedule.push(pool[bestIdx]);
+      penaltyScore += minPenalty;
+      pool.splice(bestIdx, 1);
+    } else {
+      schedule.push(pool[0]);
+      pool.splice(0, 1);
+    }
+  }
+  return { schedule, score: penaltyScore };
+}
+
+function generateChampionship() {
+  if (STATE.players.length < 2) {
+    alert('Need at least 2 players.');
+    return;
+  }
+  if (STATE.draw.length > 0) {
+    if (!confirm('This will replace the current draw. Stats kept. Continue?')) return;
+  }
+  const pList = STATE.players.map(p => normalizePlayerName(sanitizePlayerName(p)));
+  const pairs = [];
+  for (let i = 0; i < pList.length; i++) {
+    for (let j = i + 1; j < pList.length; j++) {
+      pairs.push([pList[i], pList[j]]);
+    }
+  }
+  const finalSchedule = scheduleGamesSmartly(pairs);
+  STATE.draw = finalSchedule.map((pair, i) => ({
+    id: i + 1, gameNum: i + 1, player1: pair[0], player2: pair[1],
+    score1: null, score2: null, winner: null, isGrandFinal: false, posted: false
+  }));
+  STATE.grandFinalExists = false;
+  STATE.lastChampion = null;
+  saveLocal();
+  updateUI();
+  showScreen('home');
+  alert(`Championship Generated! ${finalSchedule.length} games.`);
+  if (STATE.gasUrl) apiPost({ action: 'generateDraw' }).catch(() => {});
+}
+
+// =============================================================================
+// STANDINGS & STATS
+// =============================================================================
+
+function computeStandings() {
+  const pList = STATE.players.map(p => normalizePlayerName(p));
+  const statsMap = new Map();
+  pList.forEach(p => statsMap.set(p, { name: p, w: 0, l: 0, pf: 0, pa: 0, diff: 0 }));
+
+  STATE.draw.forEach(game => {
+    if (game.isGrandFinal) return;
+    if (game.winner && game.score1 !== null && game.score2 !== null) {
+      const p1 = normalizePlayerName(game.player1);
+      const p2 = normalizePlayerName(game.player2);
+      const w = normalizePlayerName(game.winner);
+      if (statsMap.has(p1)) {
+        const s = statsMap.get(p1);
+        if (w === p1) s.w++; else s.l++;
+        s.pf += game.score1; s.pa += game.score2; s.diff += (game.score1 - game.score2);
+      }
+      if (statsMap.has(p2)) {
+        const s = statsMap.get(p2);
+        if (w === p2) s.w++; else s.l++;
+        s.pf += game.score2; s.pa += game.score1; s.diff += (game.score2 - game.score1);
+      }
+    }
+  });
+  return Array.from(statsMap.values()).sort((a, b) => {
+    if (b.w !== a.w) return b.w - a.w;
+    return b.diff - a.diff;
+  });
+}
+
+function ensurePlayerInStats(name) {
+  const clean = normalizePlayerName(name);
+  if (!clean) return;
+  const existing = STATE.stats.find(s => normalizePlayerName(s.name) === clean);
+  if (!existing) {
+    STATE.stats.push({ name: clean, gp: 0, w: 0, l: 0, pct: 0, pf: 0, pa: 0, diff: 0, championships: 0 });
+  }
+}
+
+function updateStatsForGame(game) {
+  if (!game.winner || game.score1 === null || game.score2 === null) return;
+  if (game.posted) return;
+  const p1 = normalizePlayerName(game.player1);
+  const p2 = normalizePlayerName(game.player2);
+  const winner = normalizePlayerName(game.winner);
+  ensurePlayerInStats(p1); ensurePlayerInStats(p2);
+
+  const s1 = STATE.stats.find(s => normalizePlayerName(s.name) === p1);
+  const s2 = STATE.stats.find(s => normalizePlayerName(s.name) === p2);
+  if (s1) {
+    s1.gp++; if (winner === p1) s1.w++; else s1.l++;
+    s1.pf += game.score1; s1.pa += game.score2; s1.diff += (game.score1 - game.score2);
+    s1.pct = s1.gp > 0 ? s1.w / s1.gp : 0;
+  }
+  if (s2) {
+    s2.gp++; if (winner === p2) s2.w++; else s2.l++;
+    s2.pf += game.score2; s2.pa += game.score1; s2.diff += (game.score2 - game.score1);
+    s2.pct = s2.gp > 0 ? s2.w / s2.gp : 0;
+  }
+  game.posted = true;
+  sortStats();
+  saveLocal();
+}
+
+function awardChampionshipPoint(name) {
+  const clean = normalizePlayerName(name);
+  ensurePlayerInStats(clean);
+  const stat = STATE.stats.find(s => normalizePlayerName(s.name) === clean);
+  if (stat) { stat.championships++; sortStats(); saveLocal(); }
+}
+
+function sortStats() {
+  STATE.stats.sort((a, b) => {
+    if (b.championships !== a.championships) return b.championships - a.championships;
+    return b.diff - a.diff;
+  });
+}
+
+// =============================================================================
+// GAME LOGIC + COLOR LOGIC
+// =============================================================================
+
+function renderColorGrids() {
+  ['p1', 'p2'].forEach(p => {
+    const container = document.getElementById(p + '-colors');
+    // Default P1 to Blue, P2 to Red
+    const defaultIdx = p === 'p1' ? 4 : 5; 
+    container.innerHTML = DART_COLORS.map((c, i) => `
+      <div class="color-opt ${i === defaultIdx ? 'selected' : ''}" 
+           style="background:${c.hex}" 
+           onclick="selectColor('${p}', this, '${c.hex}')" 
+           title="${c.name}">
+      </div>
+    `).join('');
+    // Store default
+    container.dataset.val = DART_COLORS[defaultIdx].hex;
+  });
+}
+
+function selectColor(player, el, hex) {
+  document.querySelectorAll(`#${player}-colors .color-opt`).forEach(e => e.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById(`${player}-colors`).dataset.val = hex;
+}
+
+function playNextGame() {
+  const next = getNextGame();
+  if (!next) {
+    if (STATE.draw.length === 0) alert('No championship generated.');
+    else alert('All games complete!');
+    return;
+  }
+  startDrawGame(next.index);
+}
+
+function playDrawGame(index) {
+  startDrawGame(index);
+}
+
+function startDrawGame(drawIndex) {
+  const game = STATE.draw[drawIndex];
+  if (!game || game.winner) return;
+
+  STATE.currentDrawIndex = drawIndex;
+
+  // --- COLOR SELECTION LOGIC ---
+  // We use the colors currently selected in the "New Match" screen 
+  // as the "active" colors for P1 and P2 in this game.
+  const c1 = document.getElementById('p1-colors').dataset.val || '#3b82f6';
+  const c2 = document.getElementById('p2-colors').dataset.val || '#ef4444';
+
+  STATE.currentGame = {
+    id: Date.now(),
+    p1: game.player1,
+    p2: game.player2,
+    s1: 0, s2: 0,
+    c1: game.isGrandFinal ? '#EAB308' : c1, // Gold for GF
+    c2: game.isGrandFinal ? '#374151' : c2, // Black for GF
+    finished: false,
+    isGrandFinal: game.isGrandFinal,
+    gameNum: game.gameNum
+  };
+
+  document.getElementById('p1-name-disp').textContent = game.player1;
+  document.getElementById('p2-name-disp').textContent = game.player2;
+  document.getElementById('game-target').textContent = STATE.target;
+  document.getElementById('game-label').textContent = game.isGrandFinal ? '🏆 GRAND FINAL' : `Game ${game.gameNum}`;
+
+  applyGameColors(); // Apply the background colors
+  refreshScoreBoard();
+  showScreen('game');
+}
+
+function startGame() {
+  // Custom Game
+  const p1 = document.getElementById('p1-select').value;
+  const p2 = document.getElementById('p2-select').value;
+
+  if (!p1 || !p2 || p1 === p2) {
+    alert('Please select two different players.');
+    return;
+  }
+
+  const c1 = document.getElementById('p1-colors').dataset.val;
+  const c2 = document.getElementById('p2-colors').dataset.val;
+
+  STATE.currentDrawIndex = -1;
+  STATE.currentGame = {
+    id: Date.now(),
+    p1, p2, s1: 0, s2: 0, 
+    c1, c2, // Use selected colors
+    finished: false,
+    isGrandFinal: false,
+    gameNum: null
+  };
+
+  document.getElementById('p1-name-disp').textContent = p1;
+  document.getElementById('p2-name-disp').textContent = p2;
+  document.getElementById('game-target').textContent = STATE.target;
+  document.getElementById('game-label').textContent = 'Custom Match';
+
+  applyGameColors(); // Apply colors
+  refreshScoreBoard();
+  showScreen('game');
+}
+
+function applyGameColors() {
+  const g = STATE.currentGame;
+  // Set background with 20% opacity (hex + 33 is approx 20%)
+  document.getElementById('p1-area').style.backgroundColor = g.c1 + '33';
+  document.getElementById('p1-bar').style.backgroundColor = g.c1;
+
+  document.getElementById('p2-area').style.backgroundColor = g.c2 + '33';
+  document.getElementById('p2-bar').style.backgroundColor = g.c2;
+}
+
+function score(player, amt) {
+  if (!STATE.currentGame || STATE.currentGame.finished) return;
+  const prop = player === 1 ? 's1' : 's2';
+  STATE.currentGame[prop] = Math.max(0, STATE.currentGame[prop] + amt);
+  if (STATE.currentGame[prop] >= STATE.target) {
+    STATE.currentGame[prop] = STATE.target;
+    finishGame(player === 1 ? STATE.currentGame.p1 : STATE.currentGame.p2);
+  }
+  refreshScoreBoard();
+}
+
+function refreshScoreBoard() {
+  const g = STATE.currentGame;
+  if (!g) return;
+  document.getElementById('p1-score').textContent = g.s1;
+  document.getElementById('p2-score').textContent = g.s2;
+  document.getElementById('p1-bar').style.width = ((g.s1 / STATE.target) * 100) + '%';
+  document.getElementById('p2-bar').style.width = ((g.s2 / STATE.target) * 100) + '%';
+}
+
+function resetScores() {
+  if (confirm('Reset scores to 0-0?')) {
+    STATE.currentGame.s1 = 0; STATE.currentGame.s2 = 0; refreshScoreBoard();
+  }
+}
+
+function finishGame(winnerName) {
+  STATE.currentGame.finished = true;
+  STATE.currentGame.winner = winnerName;
+  refreshScoreBoard();
+  setTimeout(() => {
+    if (STATE.currentDrawIndex >= 0) {
+      completeDrawGame(STATE.currentDrawIndex, STATE.currentGame.s1, STATE.currentGame.s2);
+      showScreen('home');
+    } else {
+      const customGame = {
+        player1: STATE.currentGame.p1, player2: STATE.currentGame.p2,
+        score1: STATE.currentGame.s1, score2: STATE.currentGame.s2,
+        winner: winnerName, isGrandFinal: false, posted: false
+      };
+      updateStatsForGame(customGame);
+      if (STATE.gasUrl) apiPost({ action: 'submitGame', player1: customGame.player1, player2: customGame.player2, score1: customGame.score1, score2: customGame.score2 }).catch(() => {});
+      alert(`${winnerName} WINS!`);
+      showScreen('home');
+    }
+    STATE.currentGame = null; STATE.currentDrawIndex = -1; updateUI();
+  }, 400);
+}
+
+function quitGame() {
+  if (confirm('Quit game? Progress will be lost.')) {
+    STATE.currentGame = null; STATE.currentDrawIndex = -1; showScreen('home');
+  }
+}
+
+function completeDrawGame(drawIndex, score1, score2) {
+  const game = STATE.draw[drawIndex];
+  if (!game) return;
+  game.score1 = score1; game.score2 = score2;
+  if (score1 >= STATE.target) game.winner = game.player1;
+  else if (score2 >= STATE.target) game.winner = game.player2;
+  else if (score1 > score2) game.winner = game.player1;
+  else if (score2 > score1) game.winner = game.player2;
+
+  updateStatsForGame(game);
+  saveLocal();
+  if (STATE.gasUrl) apiPost({ action: 'submitGame', gameId: game.id, player1: game.player1, player2: game.player2, score1: game.score1, score2: game.score2 }).catch(() => {});
+  
+  if (game.isGrandFinal) processChampionshipComplete(game);
+  else if (!STATE.grandFinalExists && checkRegularGamesComplete()) setTimeout(() => addGrandFinal(), 300);
+  updateUI();
+}
+
+function checkRegularGamesComplete() {
+  const regularGames = STATE.draw.filter(g => !g.isGrandFinal);
+  if (regularGames.length === 0) return false;
+  return regularGames.every(g => g.winner !== null);
+}
+
+function getNextGame() {
+  for (let i = 0; i < STATE.draw.length; i++) {
+    if (!STATE.draw[i].isGrandFinal && !STATE.draw[i].winner) return { index: i, game: STATE.draw[i] };
+  }
+  for (let i = STATE.draw.length - 1; i >= 0; i--) {
+    if (STATE.draw[i].isGrandFinal && !STATE.draw[i].winner) return { index: i, game: STATE.draw[i] };
+  }
+  return null;
+}
+
+function addGrandFinal() {
+  if (STATE.grandFinalExists) return;
+  const standings = computeStandings();
+  if (standings.length < 2) return;
+  const p1 = standings[0].name;
+  const p2 = standings[1].name;
+  STATE.grandFinalExists = true;
+  STATE.draw.push({
+    id: STATE.draw.length + 1, gameNum: 'GF', player1: p1, player2: p2, score1: null, score2: null, winner: null, isGrandFinal: true, posted: false
+  });
+  saveLocal();
+  updateUI();
+  alert(`GRAND FINAL READY!\n\n${p1} vs ${p2}`);
+}
+
+function processChampionshipComplete(game) {
+  const winner = normalizePlayerName(game.winner);
+  if (!winner) return;
+  awardChampionshipPoint(winner);
+  const standings = computeStandings();
+  const playerStat = standings.find(s => normalizePlayerName(s.name) === winner);
+  const stat = STATE.stats.find(s => normalizePlayerName(s.name) === winner);
+  STATE.lastChampion = {
+    name: winner, wins: playerStat ? playerStat.w : 0, diff: playerStat ? playerStat.diff : 0, championships: stat ? stat.championships : 1
+  };
+  saveLocal();
+  showCelebration(STATE.lastChampion);
+  if (STATE.gasUrl) apiPost({ action: 'submitGame', gameId: game.id, player1: game.player1, player2: game.player2, score1: game.score1, score2: game.score2 }).catch(() => {});
+}
+
+function showCelebration(champion) {
+  if (!champion) return;
+  const diffDisplay = champion.diff > 0 ? '+' + champion.diff : String(champion.diff);
+  const overlay = document.getElementById('celebration-overlay');
+  let confettiHTML = '';
+  const colors = ['#EAB308', '#EF4444', '#06B6D4', '#22C55E', '#A855F7'];
+  for (let i = 0; i < 50; i++) {
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    const left = Math.random() * 100;
+    const delay = Math.random() * 3;
+    const dur = Math.random() * 2 + 2;
+    confettiHTML += `<div class="confetti-piece" style="left:${left}%;animation-delay:${delay}s;animation-duration:${dur}s;background:${color};"></div>`;
+  }
+  overlay.innerHTML = `
+    ${confettiHTML}
+    <div style="z-index:10;text-align:center;padding:20px;">
+      <div class="trophy">🏆</div>
+      <h1>GRAND FINAL CHAMPION!</h1>
+      <div class="winner-name">${champion.name}</div>
+      <div class="celebration-stats">
+        <div class="celebration-stat"><div class="val">${champion.wins}</div><div class="lbl">Wins</div></div>
+        <div class="celebration-stat"><div class="val">${diffDisplay}</div><div class="lbl">Diff</div></div>
+        <div class="celebration-stat"><div class="val">${champion.championships || 1}</div><div class="lbl">Titles</div></div>
+      </div>
+      <button class="btn-celebration" onclick="closeCelebration()">AWESOME!</button>
+    </div>
+  `;
+  overlay.style.display = 'flex';
+}
+
+function closeCelebration() {
+  document.getElementById('celebration-overlay').style.display = 'none';
+  updateUI();
+}
+
+function newEvent() {
+  if (!confirm('Start New Event?\n\nPlayer History & Stats are SAVED.\nCurrent bracket is DELETED.\n\nAre you sure?')) return;
+  STATE.draw = []; STATE.grandFinalExists = false; STATE.currentGame = null; STATE.currentDrawIndex = -1;
+  saveLocal(); updateUI(); showScreen('home');
+  if (STATE.gasUrl) apiPost({ action: 'newEvent' }).catch(() => {});
+}
+
+function resetAllData() {
+  if (!confirm('This will delete ALL data including stats and players.\n\nAre you sure?')) return;
+  localStorage.removeItem(STORAGE_KEY); location.reload();
+}
+
+// --- API SYNC ---
+async function syncData() {
+  const msg = document.getElementById('sync-msg');
+  const dot = document.getElementById('sync-dot');
+  if (!STATE.gasUrl) { msg.textContent = 'No URL.'; return; }
+  msg.textContent = 'Syncing...'; dot.textContent = '🟡';
+  try {
+    const playersRes = await fetch(STATE.gasUrl + '?action=players');
+    const playersData = await playersRes.json();
+    if (playersData.success && playersData.data.players) STATE.players = playersData.data.players;
+
+    const drawRes = await fetch(STATE.gasUrl + '?action=draw');
+    const drawData = await drawRes.json();
+    if (drawData.success && drawData.data) {
+       if (drawData.data.games) {
+          STATE.draw = drawData.data.games.map(g => ({
+             id: g.id, gameNum: g.gameNum, player1: g.player1, player2: g.player2,
+             score1: g.score1, score2: g.score2, winner: g.winner,
+             isGrandFinal: false, posted: g.status === 'COMPLETED'
+          }));
+          if (drawData.data.grandFinal) {
+             const gf = drawData.data.grandFinal;
+             STATE.draw.push({
+               id: gf.id, gameNum: 'GF', player1: gf.player1, player2: gf.player2,
+               score1: gf.score1, score2: gf.score2, winner: gf.winner,
+               isGrandFinal: true, posted: gf.status === 'COMPLETED'
+             });
+             STATE.grandFinalExists = true;
+          }
+       }
+       if (drawData.data.targetScore) STATE.target = drawData.data.targetScore;
+    }
+    saveLocal(); updateUI();
+    msg.textContent = 'Synced!'; msg.className = 'sync-status ok'; dot.textContent = '🟢';
+  } catch (e) {
+    console.error('Sync failed', e);
+    msg.textContent = 'Sync failed.'; msg.className = 'sync-status err'; dot.textContent = '🔴';
+  }
+}
+
+async function apiPost(data) {
+  if (!STATE.gasUrl) return;
+  try {
+    const res = await fetch(STATE.gasUrl, { method: 'POST', body: JSON.stringify(data) });
+    return await res.json();
+  } catch (e) { return null; }
+}
+
+async function sendPlayerToSheet(name) {
+  if (!STATE.gasUrl) return;
+  return apiPost({ action: 'addPlayer', playerName: name });
+}
+
+function addNewPlayer() {
+  const input = document.getElementById('new-player-name');
+  const name = normalizePlayerName(sanitizePlayerName(input.value.trim()));
+  if (!name || STATE.players.includes(name)) return;
+  STATE.players.push(name); ensurePlayerInStats(name); saveLocal(); updateUI(); sendPlayerToSheet(name); input.value = '';
+}
+
+// --- UI HELPERS ---
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + id).classList.add('active');
+  document.getElementById('main-nav').style.display = (id === 'game') ? 'none' : 'flex';
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  if (id === 'home') document.querySelectorAll('.nav-item')[0].classList.add('active');
+  if (id === 'settings') document.querySelectorAll('.nav-item')[1].classList.add('active');
+  if (id === 'home') updateUI();
+  if (id === 'settings') renderPlayerList();
+}
+
+function switchTab(tab, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+  document.getElementById('tab-' + tab).style.display = 'block';
+}
+
+function updateUI() {
+  const standings = computeStandings();
+  const completedRegular = STATE.draw.filter(g => !g.isGrandFinal && g.winner).length;
+  const totalRegular = STATE.draw.filter(g => !g.isGrandFinal).length;
+  document.getElementById('stat-players').textContent = STATE.players.length;
+  document.getElementById('stat-games').textContent = totalRegular > 0 ? `${completedRegular}/${totalRegular}` : '0';
+  document.getElementById('stat-target').textContent = STATE.target;
+  const leader = standings.length > 0 ? standings[0].name : '-';
+  document.getElementById('stat-leader').textContent = leader.length > 8 ? leader.substring(0, 7) + '..' : leader;
+
+  renderNextGameCard();
+  renderDraw();
+  renderStandings(standings);
+  // We can render stats here too if needed, but the tab switch handles it
+  renderPlayerSelects();
+  renderPlayerList();
+}
+
+function renderNextGameCard() {
+  const container = document.getElementById('next-game-container');
+  const next = getNextGame();
+  if (!next) {
+    // Handling completed or empty state
+    if (STATE.draw.length === 0) {
+      container.innerHTML = `<div class="next-game-card" onclick="showScreen('settings')"><div style="font-size:11px;color:#9ca3af;text-transform:uppercase;">No Championship</div><div style="font-size:14px;margin-top:4px;">Generate one in Settings</div></div>`;
+    } else {
+      container.innerHTML = `<div class="next-game-card"><div style="font-size:11px;color:#9ca3af;text-transform:uppercase;">All Games Complete</div></div>`;
+    }
+    return;
+  }
+  const game = next.game;
+  const gfLabel = game.isGrandFinal ? '<div class="gf-label" style="color:#ffd700;font-weight:900;">🏆 GRAND FINAL 🏆</div>' : `<div style="font-size:11px;color:#9ca3af;text-transform:uppercase;margin-bottom:4px;">Next Up - Game ${game.gameNum}</div>`;
+  container.innerHTML = `
+    <div class="next-game-card" onclick="playDrawGame(${next.index})" style="cursor:pointer;">
+      ${gfLabel}
+      <div class="players">${game.player1} <span class="vs">vs</span> ${game.player2}</div>
+      <div style="font-size:12px;color:var(--accent);margin-top:8px;font-weight:700;">TAP TO PLAY</div>
+    </div>`;
+}
+
+function renderDraw() {
+  const container = document.getElementById('draw-list');
+  if (STATE.draw.length === 0) { container.innerHTML = `<div class="empty-state"><p>No games scheduled.</p></div>`; return; }
+  let html = '';
+  STATE.draw.forEach((game, idx) => {
+    const isComplete = game.winner !== null;
+    const isGF = game.isGrandFinal;
+    let classes = 'draw-game';
+    if (isGF) classes += ' gf';
+    if (!isComplete) classes += ' pending';
+    // Logic to highlight next playable game
+    const next = getNextGame();
+    if (next && next.index === idx) classes += ' active-game';
+
+    const numLabel = isGF ? '🏆' : game.gameNum;
+    const scoreText = isComplete ? `${game.score1}-${game.score2}` : '-';
+    const statusIcon = isComplete ? '✓' : '';
+    const clickAttr = !isComplete ? `onclick="playDrawGame(${idx})" style="cursor:pointer;"` : '';
+    html += `
+      <div class="${classes}" ${clickAttr}>
+        <div class="game-num">${numLabel}</div>
+        <div class="game-players">${game.player1} vs ${game.player2}</div>
+        <div class="game-score">${scoreText}</div>
+        <div class="game-status" style="color:#10b981;">${statusIcon}</div>
+      </div>`;
+  });
+  container.innerHTML = html;
+}
+
+function renderStandings(standings) {
+  const container = document.getElementById('standings-container');
+  if (!standings || standings.length === 0) { container.innerHTML = `<div class="empty-state"><p>No standings.</p></div>`; return; }
+  let html = `<table class="standings-table"><thead><tr><th>Player</th><th>W</th><th>L</th><th>PF</th><th>PA</th><th>D</th></tr></thead><tbody>`;
+  standings.forEach((p, i) => {
+    const rankClass = i === 0 ? 'rank-1' : '';
+    const diffStr = p.diff > 0 ? '+' + p.diff : String(p.diff);
+    html += `<tr class="${rankClass}"><td>${i === 0 ? '👑 ' : ''}${p.name}</td><td>${p.w}</td><td>${p.l}</td><td>${p.pf}</td><td>${p.pa}</td><td style="color:${p.diff > 0 ? '#10b981' : p.diff < 0 ? '#ef4444' : '#9ca3af'}">${diffStr}</td></tr>`;
+  });
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+function renderPlayerSelects() {
+  const p1Sel = document.getElementById('p1-select');
+  const p2Sel = document.getElementById('p2-select');
+  const options = '<option value="">Select Player...</option>' + STATE.players.map(p => `<option value="${p}">${p}</option>`).join('');
+  p1Sel.innerHTML = options;
+  p2Sel.innerHTML = options;
+}
+
+function renderPlayerList() {
+  const container = document.getElementById('player-list-settings');
+  if (!container) return;
+  if (STATE.players.length === 0) { container.innerHTML = 'No players.'; return; }
+  container.innerHTML = STATE.players.map(p => `<div style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;justify-content:space-between;align-items:center;"><span>${p}</span><button style="background:none;border:none;color:#ef4444;" onclick="removePlayer('${p.replace(/'/g, "\\'")}')">×</button></div>`).join('');
+}
+
+function removePlayer(name) {
+  if (!confirm(`Remove ${name}?`)) return;
+  STATE.players = STATE.players.filter(p => normalizePlayerName(p) !== normalizePlayerName(name));
+  saveLocal(); updateUI(); renderPlayerList();
+}
+
+</script>
+</body>
+</html>
